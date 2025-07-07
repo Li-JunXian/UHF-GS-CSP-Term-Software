@@ -1,51 +1,34 @@
-import socket, threading, logging, time, struct, pathlib
-from .packet_utils import unpack_csp_header
-from ..state.datastore import TelemetryStore
-from ..config import LOCAL_TM_PORT, DATA_DIR
+import socket, threading, struct, time, logging
+from config import GS_TM_PORT
+from utils.csp import unpack_header   # you’ll add utils later
 
-CHUNK = 4096
+class TelemetryServer:
+    def __init__(self, store, host='0.0.0.0', port=GS_TM_PORT):
+        self.store, self.host, self.port = store, host, port
+        self.log = logging.getLogger('TM-Server')
 
-class TelemetryServer(threading.Thread):
-    def __init__(self, store: TelemetryStore):
-        super().__init__(daemon=True)
-        self.store = store
-        self.log = logging.getLogger("TM-Server")
+    def start(self):
+        t = threading.Thread(target=self._run, daemon=True)
+        t.start()
 
-    def run(self):
-        srv = socket.socket()
-        srv.bind(("0.0.0.0", LOCAL_TM_PORT))
-        srv.listen(1)
-        self.log.info(f"listening for GS downlink on :{LOCAL_TM_PORT}")
+    def _run(self):
+        s = socket.socket()
+        s.bind((self.host, self.port))
+        s.listen(1)
+        self.log.info(f'Telemetry server listening @ {self.port}')
+        conn, addr = s.accept()
+        self.log.info(f'GS connected from {addr}')
         while True:
-            conn, addr = srv.accept()
-            self.log.info(f"GS connected for telemetry from {addr}")
-            try:
-                self.handle_conn(conn)
-            finally:
-                conn.close()
-
-    def handle_conn(self, conn: socket.socket):
-        while True:
-            # first, read header
-            hdr = conn.recv(6)
-            if not hdr:
-                self.log.warning("GS closed telemetry socket")
+            header = conn.recv(6)
+            if not header:
                 break
-            h = unpack_csp_header(hdr)
-            payload = b''
-            remaining = h["length"]
-            while remaining:
-                chunk = conn.recv(remaining)
-                if not chunk:
-                    raise ConnectionError("socket closed mid-payload")
-                payload += chunk
-                remaining -= len(chunk)
-
-            packet = {**h, "payload": payload.hex()}
-            self.store.push(packet)
-
-            # for archival
-            fname = (DATA_DIR /
-                     f"{time.strftime('%Y%m%dT%H%M%S')}_{h['dst']:02d}.bin")
-            with open(fname, 'wb') as f:
-                f.write(hdr + payload)
+            pri, src, dst, dport, sport, length = unpack_header(header)
+            payload = conn.recv(length)
+            pkt = {
+                "timestamp": time.time(),
+                "src": src, "dst": dst,
+                "src_port": sport, "dst_port": dport,
+                "payload": payload.hex()
+            }
+            self.store.push(pkt)
+            self.log.debug(f'Pkt {pkt}')
