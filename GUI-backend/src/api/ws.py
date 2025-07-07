@@ -1,28 +1,34 @@
-from fastapi import WebSocket, WebSocketDisconnect
-from ..state.datastore import TelemetryStore
-import asyncio, json
-
+import asyncio, logging, json
+from fastapi import WebSocket
 class WSHandler:
-    def __init__(self, store: TelemetryStore):
+    def __init__(self, store):
         self.store = store
         self.clients = set()
+        self.q = asyncio.Queue()
+        self.log = logging.getLogger('WS')
 
-    async def broadcaster(self):
-        last = 0
-        while True:
-            cur = self.store.snapshot()
-            if cur and id(cur[-1]) != last:
-                payload = json.dumps(cur[-1])
-                await asyncio.gather(*[c.send_text(payload)
-                                       for c in list(self.clients)])
-                last = id(cur[-1])
-            await asyncio.sleep(0.2)
-
-    async def endpoint(self, ws: WebSocket):
-        await ws.accept()
-        self.clients.add(ws)
+    async def endpoint(self, websocket: WebSocket):
+        await websocket.accept()
+        self.clients.add(websocket)
         try:
             while True:
-                await ws.receive_text()     # ignore; one-way
-        except WebSocketDisconnect:
-            self.clients.discard(ws)
+                await websocket.receive_text()  # ignore incoming
+        except:
+            pass
+        finally:
+            self.clients.remove(websocket)
+
+    async def broadcaster(self):
+        latest_seen = None
+        while True:
+            pkt = self.store.get_latest()
+            if pkt and pkt is not latest_seen:
+                latest_seen = pkt
+                dead = []
+                for ws in self.clients:
+                    try:
+                        await ws.send_json(pkt)
+                    except:
+                        dead.append(ws)
+                for ws in dead: self.clients.remove(ws)
+            await asyncio.sleep(0.2)

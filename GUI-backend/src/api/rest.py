@@ -1,12 +1,9 @@
-from fastapi import FastAPI, Depends
-from ..state.datastore import TelemetryStore
-store: TelemetryStore | None = None   # injected from main
-
-def get_store() -> TelemetryStore:
-    return store
-
+from fastapi import FastAPI, HTTPException
 api = FastAPI()
+store = None       # will be injected by main.py
 
-@api.get("/telemetry")
-def telemetry(s: TelemetryStore = Depends(get_store)):
-    return s.snapshot()
+@api.get("/telemetry/latest")
+def latest():
+    if store is None or store.get_latest() is None:
+        raise HTTPException(404, "No data yet")
+    return store.get_latest()

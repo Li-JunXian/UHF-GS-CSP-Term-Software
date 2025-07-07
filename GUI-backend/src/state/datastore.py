@@ -1,15 +1,15 @@
-import threading, time, collections
-
+import threading, time
 class TelemetryStore:
     def __init__(self):
-        self._lock = threading.RLock()
-        self.latest = collections.deque(maxlen=1000)   # simple ring buffer
+        self._lock = threading.Lock()
+        self.latest = None
+        self.history = []
 
-    def push(self, packet: dict):
+    def push(self, pkt: dict):
         with self._lock:
-            packet["recv_ts"] = time.time()
-            self.latest.append(packet)
+            self.latest = pkt
+            self.history.append(pkt)
 
-    def snapshot(self):
+    def get_latest(self):
         with self._lock:
-            return list(self.latest)
+            return self.latest
