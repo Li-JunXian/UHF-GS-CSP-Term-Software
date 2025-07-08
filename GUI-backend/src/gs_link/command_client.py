@@ -1,5 +1,6 @@
 import socket, threading, queue, logging, time
 from config import GS_CMD_PORT
+from utils.csp import unpack_header
 class CommandClient:
     def __init__(self, host='127.0.0.1', port=GS_CMD_PORT):
         self.q = queue.Queue()
