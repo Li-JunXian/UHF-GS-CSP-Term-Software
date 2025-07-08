@@ -1,8 +1,9 @@
 import logging, uvicorn, asyncio
+from api.rest                 import api
+import api.rest               as rest_mod
 from gs_link.telemetry_server import TelemetryServer
 from gs_link.command_client   import CommandClient
 from state.datastore          import TelemetryStore
-from api.rest                 import api
 from api.ws                   import WSHandler
 from config                   import API_PORT, LOG_LEVEL
 
@@ -11,8 +12,7 @@ logging.basicConfig(level=LOG_LEVEL)
 store = TelemetryStore()
 
 # inject store into REST & WS modules
-import api.rest, api.ws
-api.rest.store = store
+rest_mod.store = store
 ws_handler = WSHandler(store)
 
 TelemetryServer(store).start()

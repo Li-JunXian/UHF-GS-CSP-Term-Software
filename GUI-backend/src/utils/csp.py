@@ -40,7 +40,7 @@ def kiss_deframe(stream: bytearray) -> list[bytes]:
     return frames
 
 # ---------- CSP header (6-byte disk format) ----------
-def unpack_csp_header(h: bytes) -> dict:
+def unpack_header(h: bytes) -> dict:
     """Return dict with prio, src, dst, dport, sport, length."""
     if len(h) != 6:
         raise ValueError("expect 6-byte header")

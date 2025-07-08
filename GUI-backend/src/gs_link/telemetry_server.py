@@ -1,6 +1,6 @@
 import socket, threading, struct, time, logging
 from config import GS_TM_PORT
-from utils.csp import unpack_header   # you’ll add utils later
+from utils.csp import unpack_header
 
 class TelemetryServer:
     def __init__(self, store, host='0.0.0.0', port=GS_TM_PORT):
