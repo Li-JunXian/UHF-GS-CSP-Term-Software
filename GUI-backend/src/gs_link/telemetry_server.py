@@ -23,6 +23,13 @@ class TelemetryServer:
             if not header:
                 break
             pri, src, dst, dport, sport, length = unpack_header(header)
+            hdr = unpack_header(header)
+            pri    = hdr['prio']
+            src    = hdr['src']
+            dst    = hdr['dst']
+            dport  = hdr['dport']
+            sport  = hdr['sport']
+            length = hdr['length']
             payload = conn.recv(length)
             pkt = {
                 "timestamp": time.time(),
@@ -31,4 +38,4 @@ class TelemetryServer:
                 "payload": payload.hex()
             }
             self.store.push(pkt)
-            self.log.debug(f'Pkt {pkt}')
+            self.log.info(f'Pkt {pkt}')
