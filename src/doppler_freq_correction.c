@@ -11,6 +11,8 @@
 #include <time.h>
 #include "predict.h"
 #include "serial_rotator.h"
+#include "status_publisher.h"
+#include <stdio.h>
 
 /* GS100/AX100 configuration parameter*/
 #define AX100_PORT_RPARAM	7	/* task_server remote param port */
@@ -66,7 +68,7 @@ static int TXfreq = 0;
 static int RXfreq = 0;
 static uint32_t sat_no = 1;	// Initialisation tracking Lumelite 1
 
-static void doppler_tracking(int txfreq, int rxfreq, uint32_t tnow);
+
 int mcs_sat_sel(uint32_t sat_no_sel);
 int ping_sat_func(void);
 
@@ -225,6 +227,9 @@ static void ground_pass_in_progress(long time_aos,long time_los)
 	{
 		log_warning("Ground pass begin: %.24s", ctime((time_t *) &tnowl));
 		
+		// notify GUI-backend: we have entered Tracking mode
+    	status_publisher_send("{\"type\":\"gs_mode\",\"mode\":\"Tracking\"}");
+		
 		while (tnowl < time_los)
 		{
 			clock_get_time(&clock);
@@ -239,7 +244,9 @@ static void ground_pass_in_progress(long time_aos,long time_los)
 		//if(serial_set_az_el(70,0,0) < 1)
 		if(serial_set_az_el(70,0) < 1)
 			log_debug("AZEL reset AZ: 150 EL: 0 failed");
-		log_warning("Ground pass ended: %.24s", ctime((time_t *) &tnowl));
+			log_warning("Ground pass ended: %.24s", ctime((time_t *) &tnowl));
+			// notify GUI-backend: pass is over, back to Idle mode
+    		status_publisher_send("{\"type\":\"gs_mode\",\"mode\":\"Idle\"}");
 	}
 	return;
 }
@@ -384,6 +391,25 @@ static void doppler_tracking(int txfreq, int rxfreq, uint32_t tnow)
 
 	log_info("AZ: %f, EL: %f, RX: %"PRIu32" TX: %"PRIu32, az, el, rx_freq, tx_freq);
 	log_info("Sat Latitude: %f, Longitude: %f, Altitude: %f km, Velocity: %f km/s", satlat, satlon, satalt, satvel);
+    // publish current tracking state to GUI-backend
+    {
+        char buf[256];
+        snprintf(buf, sizeof(buf),
+            "{"
+			"\"azi\":%.2f,"
+			"\"ele\":%.2f,"
+			"\"rx_freq\":%u,"
+			"\"tx_freq\":%u,"
+            "\"sat_lat\":%.6f,"
+			"\"sat_lon\":%.6f,"
+			"\"sat_alt\":%.1f,"
+            "\"velocity\":%.2f,"
+			"\"norad_id\":%u}",
+            az, el, rx_freq, tx_freq,
+            satlat, satlon, satalt,
+            satvel, sat_no);
+        status_publisher_send(buf);
+    }
 	
 	/* Impose minimum elevation -> start of Ground pass */
 	if (el < MIN_ELEVATION){
