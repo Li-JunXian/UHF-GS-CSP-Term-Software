@@ -27,6 +27,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "status_publisher.h"
+
 #define DEBUG 0
 
 char * get_time(char * my_str);	//function declaration from get_timestamp.c
@@ -111,6 +113,20 @@ void receive_packet(csp_packet_t *packet)
 		printf("Saving csp packet complete\r\n\n");
 	}
 	fclose(file_recv_pointer);
+
+	// Publish JSON status after saving to disk
+	char status_json[256];
+	snprintf(status_json, sizeof(status_json),
+		"{"
+		"\"type\":\"telemetry\","
+		"\"timestamp\":\"%s\","
+		"\"src\":%u,"
+		"\"dst\":%u,"
+		"\"dport\":%u,"
+		"\"sport\":%u,"
+		"\"length\":%u}",
+		time_string_recv, header_values[1], header_values[0], header_values[3], header_values[2], packet->length);
+	status_publisher_send(status_json);
 
 
 	/* Differentiate packet type using destination node address */
