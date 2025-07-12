@@ -244,9 +244,9 @@ static void ground_pass_in_progress(long time_aos,long time_los)
 		//if(serial_set_az_el(70,0,0) < 1)
 		if(serial_set_az_el(70,0) < 1)
 			log_debug("AZEL reset AZ: 150 EL: 0 failed");
-			log_warning("Ground pass ended: %.24s", ctime((time_t *) &tnowl));
-			// notify GUI-backend: pass is over, back to Idle mode
-    		status_publisher_send("{\"type\":\"gs_mode\",\"mode\":\"Idle\"}");
+		log_warning("Ground pass ended: %.24s", ctime((time_t *) &tnowl));
+		// notify GUI-backend: pass is over, back to Idle mode
+		status_publisher_send("{\"type\":\"gs_mode\",\"mode\":\"Idle\"}");
 	}
 	return;
 }
@@ -404,7 +404,8 @@ static void doppler_tracking(int txfreq, int rxfreq, uint32_t tnow)
 			"\"sat_lon\":%.6f,"
 			"\"sat_alt\":%.1f,"
             "\"velocity\":%.2f,"
-			"\"norad_id\":%u}",
+			"\"norad_id\":%u"
+			"}",
             az, el, rx_freq, tx_freq,
             satlat, satlon, satalt,
             satvel, sat_no);
